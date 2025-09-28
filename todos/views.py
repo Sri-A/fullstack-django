@@ -1,30 +1,17 @@
-import json
-from django.http import HttpResponseBadRequest, JsonResponse
-from django.shortcuts import render
+from rest_framework import generics
 from .models import Todo
-from django.views.decorators.csrf import csrf_exempt
+from .serializers import TodoSerializer
+from rest_framework.filters import OrderingFilter
 
-# Create your views here.
-def list_todos(request):
-    data = list(
-        Todo.objects.order_by('-created_at').values('id', 'title', 'done', 'created_at')
-    )
-    return JsonResponse({'todos': data})
+# GET /api/todos/ and POST /api/todos/
+class TodoListCreateView(generics.ListCreateAPIView):
+    queryset = Todo.objects.all().order_by('-created_at')
+    serializer_class = TodoSerializer
+    filter_backends = [OrderingFilter]
+    ordering_fields = ["created_at", "title", "done"]   # allowed fields
+    ordering = ["-created_at"]                          # default fallback (optional)
 
-@csrf_exempt
-def create_todo(request):
-    if request.method != 'POST':
-        return HttpResponseBadRequest('POST required')
-    try:
-        body = json.loads(request.body.decode('utf-8'))
-    except json.JSONDecodeError:
-        return HttpResponseBadRequest('invalid Json')
-
-    title = (body.get('title') or '').strip()
-    if not title:
-        return HttpResponseBadRequest('title is missin')
-
-    t = Todo.objects.create(title=title)
-    return JsonResponse(
-        { 'id': t.id, 'title': t.title, 'done': t.done, 'created_at': t.created_at }
-    )
+# GET, PATCH, DELETE /api/todos/<id>/
+class TodoRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Todo.objects.all()
+    serializer_class = TodoSerializer
